@@ -8,7 +8,9 @@
 # (network API expects byte[] as input).
 
 from serialization import jsonpickle
-
+from petrelic.multiplicative.pairing import G1, G2, GT
+import random as rd
+import base64
 
 class PSSignature(object):
     """PS's Multi-message signature from section 4.2
@@ -19,21 +21,52 @@ class PSSignature(object):
     and its simplicity in comparison with the ABC scheme allows you to realize
     misunderstandings/problems early on.
     """
+    def __init__(self, r, p): # This __init__ is not mandatory, and serves test purposes. We could have chosen self.p = G2.order and self.r = len(messages).
+        self.r = r
+        self.p = p
 
-    def generate_key():
-        pass
+    def generate_key(self):
+        g_tilde = G2.generator() ** G2.order().random()
+        
+        sk = []
+        pk = [g_tilde]
+        for i in range(r+1):
+            sk.append(rd.randint(1, p))
+            pk.append(g_tilde ** sk[-1])
+        
+        self.sk = sk
+        self.pk = pk
+        return(pk)
 
-    def sign(sk, messages):
-        pass
+    def sign(self, sk, messages):
+        
+        h = G1.generator() ** G1.order().random()
+        
+        my_sum = sk[0]
+        for i in range(len(messages)):
+            my_sum += sk[i+1] * messages[i]
 
-    def verify(pk, signature):
-        pass
+        return(h, h**my_sum)
+
+    def verify(self, pk, messages, signature):
+        sigma1 = signature[0]
+        sigma2 = signature[1]
+        if sigma1 == G1.neutral_element():
+            return("Cataschtroumpf")
+        
+        my_prod = pk[1]
+        for i in range(2,len(pk)):
+            my_prod *= pk[i] ** messages[i-2]
+        
+        return(sigma1.pair(my_prod) == sigma2.pair(pk[0]))
 
 
 class Issuer(object):
     """Allows the server to issue credentials"""
 
-    def setup(self, valid_attributes):
+    def setup(self, valid_attributes): #Issuer knows which valid_attributes it can call.
+        self.p = G2.order()
+        
         """Decides the public parameters of the scheme and generates a key for
         the issuer.
 
@@ -115,6 +148,8 @@ class Signature(object):
     """A Signature"""
 
     def verify(self, issuer_public_info, public_attrs, message):
+        my_list = list(message)
+        
         """Verifies a signature.
 
         Args:
@@ -128,15 +163,20 @@ class Signature(object):
         pass
 
     def serialize(self):
+        json_obj = jsonpickle.encode(self)
+        
+        return(base64.b64encode(json_obj))
         """Serialize the object to a byte array.
 
         Returns: 
             byte[]: a byte array 
         """
-        pass
-
+        
     @staticmethod
     def deserialize(data):
+        json_byte = base64.b64decode(data)
+        my_obj = jsonpickle.decode(json_byte)
+        return(my_obj)
         """Deserializes the object from a byte array.
 
         Args: 
@@ -145,4 +185,3 @@ class Signature(object):
         Returns:
             Signature
         """
-        pass

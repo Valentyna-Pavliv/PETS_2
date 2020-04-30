@@ -5,34 +5,60 @@ Classes that you need to complete.
 # Optional import
 from serialization import jsonpickle
 from petrelic.multiplicative.pairing import G1, G2, GT
-
+import json
+import random as rd
 
 class Server:
     """Server"""
 
     @staticmethod
     def generate_ca(valid_attributes):
+        attribute_list = jsonpickle.decode(valid_attributes)
+        self.valid_attributes = attribute_list
+        
+        self.r = len(attribute_list) #To Update HOW DO WE USE ATTRIBUTES ?
+        self.p = = G2.order()
+        
+        g_tilde = G2.generator() ** G2.order().random()
+        
+        sk = []
+        pk = [g_tilde]
+        for i in range(r+1):
+            sk.append(rd.randint(1, p))
+            pk.append(g_tilde ** sk[-1])
+        
+        self.sk = sk
+        self.pk = pk
+        
+        pk_byte_array = serialize_G2(pk)
+        sk_byte_array = serialize_int(sk)
+        
+        
+        return(pk_byte_array, sk_byte_array)
+        
         """Initializes the credential system. Runs exactly once in the
-        beginning. Decides on schemes public parameters and choses a secret key
+        beginning. Decides on schemes public parameters and chooses a secret key
         for the server.
 
         Args:
             valid_attributes (string): a list of all valid attributes. Users cannot
-            get a credential with a attribute which is not included here.
+            get a credential with an attribute which is not included here.
 
             Note: You can use JSON to encode valid_attributes in the string.
 
         Returns:
             (tuple): tuple containing:
-                byte[] : server's pubic information
+                byte[] : server's public information
                 byte[] : server's secret key
             You are free to design this as you see fit, but all communications
             needs to be encoded as byte arrays.
         """
 
-        raise NotImplementedError
-
     def register(self, server_sk, issuance_request, username, attributes):
+        
+        # Check if attributes is in the list of valid_attributes
+        #Response should contain (server_pk, server_response, private_state ????)
+        
         """ Registers a new account on the server.
 
         Args:
@@ -52,6 +78,12 @@ class Server:
     def check_request_signature(
         self, server_pk, message, revealed_attributes, signature
     ):
+        my_sig = Signature()
+        test_sig = my_sig.deserialize(signature)
+        my_bool = test_sig.verify(server_pk, revealed_attributes, message)
+        
+        return(my_bool)
+    
         """
 
         Args:
@@ -65,7 +97,6 @@ class Server:
         Returns:
             valid (boolean): is signature valid
         """
-        raise NotImplementedError
 
 
 class Client:
@@ -91,6 +122,9 @@ class Client:
         raise NotImplementedError
 
     def proceed_registration_response(self, server_pk, server_response, private_state):
+        
+        #Create an anonymous credential from response
+        
         """Process the response from the server.
 
         Args:
@@ -102,6 +136,8 @@ class Client:
         Return:
             credential (byte []): create an attribute-based credential for the user
         """
+        #Returns an Anoncredential (serialized)
+        
         raise NotImplementedError
 
     def sign_request(self, server_pk, credential, message, revealed_info):
@@ -119,3 +155,69 @@ class Client:
             byte []: message's signature (serialized)
         """
         raise NotImplementedError
+
+def serialize_int(my_list):
+    
+    byte_array = b""
+    
+    for element in my_list:
+        byte_array += base64.b64encode(element.to_bytes(element.bit_length()//8+1, byteorder = "big")) + b'___'
+    
+    return(byte_array)
+
+def deserialize_int(byte_array):
+    
+    my_list = []
+    
+    byte_list = byte_array.split(b"___")
+    
+    for element in byte_list:
+        my_list.append(int.from_bytes(base64.b64decode(element), byteorder = 'big'))
+    
+    return(my_list[:-1])
+    
+
+def serialize_G1(my_list):
+    my_handler = G1EMHandler(jsonpickle.handlers.BaseHandler)
+    
+    byte_array = b""
+    
+    for element in my_list:
+        byte_array += bytes(my_handler.flatten(element, {})['b64repr']+"___", "utf-8")
+    
+    return(byte_array)
+
+def deserialize_G1(byte_array):
+    my_handler = G1EMHandler(jsonpickle.handlers.BaseHandler)
+    
+    my_list = []
+    decoded_byte = byte_array.decode().split("___")
+    
+    for element in decoded_byte:
+        my_list.append(my_handler.restore({"b64repr":element}))
+    
+    return(my_list[:-1])
+
+
+
+def serialize_G2(my_list):
+    my_handler = G2EMHandler(jsonpickle.handlers.BaseHandler)
+    
+    byte_array = b""
+    
+    for element in my_list:
+        byte_array += bytes(my_handler.flatten(element, {})['b64repr']+"___", "utf-8")
+    
+    return(byte_array)
+
+def deserialize_G2(byte_array):
+    my_handler = G2EMHandler(jsonpickle.handlers.BaseHandler)
+    
+    my_list = []
+    decoded_byte = byte_array.decode().split("___")
+    
+    for element in decoded_byte:
+        my_list.append(my_handler.restore({"b64repr":element}))
+    
+    return(my_list[:-1])
+    
