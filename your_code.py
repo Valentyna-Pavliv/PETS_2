@@ -29,7 +29,7 @@ class Server:
         for i in range(self.r+1):
             sk.append(rd.randint(1, self.p))
             pk.append(g_tilde ** sk[-1])
-        
+         des trucs
         self.sk = sk
         self.pk = pk
         
@@ -59,8 +59,13 @@ class Server:
 
     def register(self, server_sk, issuance_request, username, attributes):
         
-        # Check if attributes is in the list of valid_attributes
-        #Response should contain (server_pk, server_response, private_state ????)
+        # Response should contain (server_pk, server_response, private_state ????)
+        
+        request = jsonpickle.decode(issuance_request)
+        if request["username"] != username or request["attribute"] != attributes or (attributes not in self.attribute_list):
+            return(b"failed")
+        
+        
         
         """ Registers a new account on the server.
 
@@ -79,6 +84,7 @@ class Server:
         raise NotImplementedError
 
     def check_request_signature(self, server_pk, message, revealed_attributes, signature):
+        # We test a signature to see if it is valid.
         my_sig = Signature()
         test_sig = my_sig.deserialize(signature)
         my_bool = test_sig.verify(server_pk, revealed_attributes, message)
@@ -104,6 +110,17 @@ class Client:
     """Client"""
 
     def prepare_registration(self, server_pk, username, attributes):
+        
+        # What should we do with the server_pk ?
+        
+        issuance_request = {}
+        issuance_request["username"] = username
+        issuance_request["attribute"] = attributes
+        
+        issuance_request_serialized = jsonpickle.encode(issuance_request)
+        
+        return(issuance_request_serialized)
+        
         """Prepare a request to register a new account on the server.
 
         Args:
@@ -120,7 +137,6 @@ class Client:
                 from prepare_registration to proceed_registration_response.
                 You need to design the state yourself.
         """
-        raise NotImplementedError
 
     def proceed_registration_response(self, server_pk, server_response, private_state):
         
@@ -142,6 +158,17 @@ class Client:
         raise NotImplementedError
 
     def sign_request(self, server_pk, credential, message, revealed_info):
+        
+        # We sign something == create a signature.
+        # credential passed as argument is an Anoncredential object.
+        deserialized_pk = deserialize(server_pk)
+        
+        # We have to programm the object Anoncredential
+        
+        my_credential = Anoncredential(credential) #Create a new Anoncredential object and ask him to sign the message.
+        my_signature = my_credential.sign(message, revealed_info)
+        
+        return(my_signature.serialize())
         """Signs the request with the clients credential.
 
         Arg:
@@ -155,7 +182,6 @@ class Client:
         Returns:
             byte []: message's signature (serialized)
         """
-        raise NotImplementedError
 
 def serialize_int(my_list):
     

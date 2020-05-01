@@ -12,6 +12,7 @@ from petrelic.multiplicative.pairing import G1, G2, GT
 import random as rd
 import base64
 
+''' Unused in the project
 class PSSignature(object):
     """PS's Multi-message signature from section 4.2
     
@@ -59,7 +60,7 @@ class PSSignature(object):
             my_prod *= pk[i] ** messages[i-2]
         
         return(sigma1.pair(my_prod) == sigma2.pair(pk[0]))
-
+'''
 
 class Issuer(object):
     """Allows the server to issue credentials"""
@@ -114,6 +115,9 @@ class AnonCredential(object):
     """An AnonCredential"""
 
     def create_issue_request():
+        
+        #Client proves that he knows (t, m) with m the secret value and t is a random scalar.
+        
         """Gets all known attributes (subscription) of a user and creates an issuance request.
         You are allowed to add extra attributes to the issuance.
 
@@ -122,6 +126,9 @@ class AnonCredential(object):
         pass
 
     def receive_issue_response():
+        
+        # Find sigma out of sigma_prime.
+        
         """This function finishes the credential based on the response of issue.
 
         Hint: you need both secret values from the create_issue_request and response
