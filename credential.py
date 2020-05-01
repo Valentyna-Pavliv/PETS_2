@@ -30,8 +30,8 @@ class PSSignature(object):
         
         sk = []
         pk = [g_tilde]
-        for i in range(r+1):
-            sk.append(rd.randint(1, p))
+        for i in range(self.r+1):
+            sk.append(rd.randint(1, self.p))
             pk.append(g_tilde ** sk[-1])
         
         self.sk = sk

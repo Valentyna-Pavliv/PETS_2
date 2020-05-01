@@ -3,7 +3,10 @@ Classes that you need to complete.
 """
 
 # Optional import
-from serialization import jsonpickle
+import base64
+
+from credential import Signature
+from serialization import jsonpickle, G1EMHandler, G2EMHandler
 from petrelic.multiplicative.pairing import G1, G2, GT
 import json
 import random as rd
@@ -12,19 +15,19 @@ class Server:
     """Server"""
 
     @staticmethod
-    def generate_ca(valid_attributes):
+    def generate_ca(self, valid_attributes):
         attribute_list = jsonpickle.decode(valid_attributes)
         self.valid_attributes = attribute_list
         
         self.r = len(attribute_list) #To Update HOW DO WE USE ATTRIBUTES ?
-        self.p = = G2.order()
+        self.p = G2.order()
         
         g_tilde = G2.generator() ** G2.order().random()
         
         sk = []
         pk = [g_tilde]
-        for i in range(r+1):
-            sk.append(rd.randint(1, p))
+        for i in range(self.r+1):
+            sk.append(rd.randint(1, self.p))
             pk.append(g_tilde ** sk[-1])
         
         self.sk = sk
@@ -75,9 +78,7 @@ class Server:
         """
         raise NotImplementedError
 
-    def check_request_signature(
-        self, server_pk, message, revealed_attributes, signature
-    ):
+    def check_request_signature(self, server_pk, message, revealed_attributes, signature):
         my_sig = Signature()
         test_sig = my_sig.deserialize(signature)
         my_bool = test_sig.verify(server_pk, revealed_attributes, message)
