@@ -12,6 +12,8 @@ from petrelic.multiplicative.pairing import G1, G2, GT
 import random as rd
 import base64
 
+from your_code import serialize_G2, serialize_int, serialize_G1, serialize, deserialize
+
 ''' Unused in the project
 class PSSignature(object):
     """PS's Multi-message signature from section 4.2
@@ -65,9 +67,7 @@ class PSSignature(object):
 class Issuer(object):
     """Allows the server to issue credentials"""
 
-    def setup(self, valid_attributes): #Issuer knows which valid_attributes it can call.
-        self.p = G2.order()
-        
+    def setup(self, attribute_list): #Issuer knows which valid_attributes it can call.
         """Decides the public parameters of the scheme and generates a key for
         the issuer.
 
@@ -75,7 +75,34 @@ class Issuer(object):
             valid_attributes (string): all valid attributes. The issuer
             will never be called with a value outside this list
         """
-        pass
+
+
+        self.valid_attributes = attribute_list
+
+        #Public parameters
+        self.p = G2.order()
+
+        #Key Generation
+        r = len(attribute_list)
+        self.g = G1.generator()
+        self.g_tilde = G2.generator()
+
+
+        #Secret key
+        x = self.p.random()
+        self.sk = self.g**x
+        self.sk_serialized = serialize(self.sk)
+
+
+        #Public key
+        X_tilde = self.g_tilde**x
+        y_list = [self.p.random() for i in range(r)]
+        Y_list = [self.g**y_i for y_i in y_list]
+        Y_tilde_list = [self.g_tilde**y_i for y_i in y_list]
+
+        self.pk = (self.p, self.g, Y_list, self.g_tilde, X_tilde,Y_tilde_list)
+        self.pk_serialized = serialize((self.valid_attributes, self.pk))
+
 
     def get_serialized_public_key(self):
         """Returns the public parameters and the public key of the issuer.
@@ -86,7 +113,7 @@ class Issuer(object):
         Returns:
             byte[]: issuer's public params and key
         """
-        pass
+        return self.pk_serialized
 
     def get_serialized_secret_key(self):
         """Returns the secret key of the issuer.
@@ -97,9 +124,9 @@ class Issuer(object):
         Returns:
             byte[]: issuer's secret params and key
         """
-        pass
+        return self.sk_serialized
 
-    def issue():
+    def issue(self, C, zkp):
         """Issues a credential for a new user. 
 
         This function should receive a issuance request from the user
@@ -108,24 +135,41 @@ class Issuer(object):
 
         You should design the issue_request as you see fit.
         """
-        pass
+
+        #TODO
+        #first: the issuer verifies zkp
+
+        #if zkp is correct, issuer issues signature
+        u = G1.order().random()
+        return (self.g**u, (C*self.sk)**u)
 
 
 class AnonCredential(object):
     """An AnonCredential"""
 
-    def create_issue_request():
+    def create_issue_request(self, m_list, pp):
         
         #Client proves that he knows (t, m) with m the secret value and t is a random scalar.
         
         """Gets all known attributes (subscription) of a user and creates an issuance request.
         You are allowed to add extra attributes to the issuance.
 
+
         You should design the issue_request as you see fit.
         """
-        pass
 
-    def receive_issue_response():
+        #Compute C
+        p, g, Y_list, g_tilde, X_tilde, Y_tilde_list = pp
+        t = p.random()
+        C = g**t * G1.prod([y_i**m_i for (y_i, m_i) in Y_list.zip(m_list)])
+
+        #TODO How?
+        #Compute the zkp
+
+        return (C, t)
+
+
+    def receive_issue_response(self, sigma_prime, private_state):
         
         # Find sigma out of sigma_prime.
         
@@ -136,7 +180,9 @@ class AnonCredential(object):
 
         You should design the issue_request as you see fit.
         """
-        pass
+
+        #TODO finir ça
+        return 0
 
     def sign(self, message, revealed_attr):
         """Signs the message.
@@ -170,25 +216,27 @@ class Signature(object):
         pass
 
     def serialize(self):
+        """Serialize the object to a byte array.
+
+        Returns:
+            byte[]: a byte array
+        """
+
         json_obj = jsonpickle.encode(self)
         
         return(base64.b64encode(json_obj))
-        """Serialize the object to a byte array.
 
-        Returns: 
-            byte[]: a byte array 
-        """
-        
     @staticmethod
     def deserialize(data):
-        json_byte = base64.b64decode(data)
-        my_obj = jsonpickle.decode(json_byte)
-        return(my_obj)
         """Deserializes the object from a byte array.
 
-        Args: 
-            data (byte[]): a byte array 
+        Args:
+            data (byte[]): a byte array
 
         Returns:
             Signature
         """
+        json_byte = base64.b64decode(data)
+        my_obj = jsonpickle.decode(json_byte)
+        return(my_obj)
+
