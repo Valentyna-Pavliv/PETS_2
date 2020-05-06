@@ -11,6 +11,7 @@ from serialization import jsonpickle
 from petrelic.multiplicative.pairing import G1, G2, GT
 import random as rd
 import base64
+import hashlib
 
 from your_code import serialize_G2, serialize_int, serialize_G1, serialize, deserialize
 
@@ -64,10 +65,18 @@ class PSSignature(object):
         return(sigma1.pair(my_prod) == sigma2.pair(pk[0]))
 '''
 
+def hash(stuff):
+    """
+    Hash function used for fiat shamir zkp, hashes everything
+    return:
+        string that is the digest of the hash
+    """
+    return int.to_bytes(hashlib.sha512(serialize(stuff)).hexdigest(), byteorder='big')
+
 class Issuer(object):
     """Allows the server to issue credentials"""
 
-    def setup(self, attribute_list): #Issuer knows which valid_attributes it can call.
+    def setup(self, attribute_string): #Issuer knows which valid_attributes it can call.
         """Decides the public parameters of the scheme and generates a key for
         the issuer.
 
@@ -76,14 +85,13 @@ class Issuer(object):
             will never be called with a value outside this list
         """
 
-
-        self.valid_attributes = attribute_list
+        self.valid_attributes = attribute_string.split()
 
         #Public parameters
         self.p = G2.order()
 
         #Key Generation
-        r = len(attribute_list)
+        self.r = len(self.valid_attributes)
         self.g = G1.generator()
         self.g_tilde = G2.generator()
 
@@ -96,11 +104,12 @@ class Issuer(object):
 
         #Public key
         X_tilde = self.g_tilde**x
-        y_list = [self.p.random() for i in range(r)]
-        Y_list = [self.g**y_i for y_i in y_list]
+        #r+1 because we need to take the username in account
+        y_list = [self.p.random() for i in range(self.r+1)]
+        self.Y_list = [self.g**y_i for y_i in y_list]
         Y_tilde_list = [self.g_tilde**y_i for y_i in y_list]
 
-        self.pk = (self.p, self.g, Y_list, self.g_tilde, X_tilde,Y_tilde_list)
+        self.pk = (self.p, self.g, self.Y_list, self.g_tilde, X_tilde,Y_tilde_list)
         self.pk_serialized = serialize((self.valid_attributes, self.pk))
 
 
@@ -136,8 +145,13 @@ class Issuer(object):
         You should design the issue_request as you see fit.
         """
 
-        #TODO
         #first: the issuer verifies zkp
+        #c is the hash and R the list
+        c, R = zkp
+        R_prime = self.g**R[0] * (C**c).inverse() * G1.prod([self.Y_list[i]**R[i+1] for i in range(self.r)])
+        #Compute the hash and check if the same
+        if hash((R_prime, self.pk)) != c:
+            return ()
 
         #if zkp is correct, issuer issues signature
         u = G1.order().random()
@@ -163,10 +177,19 @@ class AnonCredential(object):
         t = p.random()
         C = g**t * G1.prod([y_i**m_i for (y_i, m_i) in Y_list.zip(m_list)])
 
-        #TODO How?
-        #Compute the zkp
+        #Use Fiat shamir heuristic for zkp
+        #we need to pick a "challenge" ourselves and hash it
+        m_len = len(m_list)
+        challenge = [p.random() for i in m_len+1]
+        V=g**challenge[0] * G1.prod([Y_list[i]**challenge[i+1] for i in range(m_len)])
 
-        return (C, t)
+        #Now hash V and public params
+        c = hash((V, pp))
+        R = [challenge[0]+c*t%p].extend([challenge[i+1]+c*m_list[i]%p for i in range(m_len)])
+
+        zkp= (c, R)
+
+        return ((C, zkp), (m_list, t))
 
 
     def receive_issue_response(self, sigma_prime, private_state):
@@ -181,10 +204,10 @@ class AnonCredential(object):
         You should design the issue_request as you see fit.
         """
 
-        #TODO finir ça
-        return 0
+        return (sigma_prime[0], sigma_prime[1]/sigma_prime[0]**private_state[1], private_state)
 
-    def sign(self, message, revealed_attr):
+
+    def sign(self, pp, credential, message, revealed_attr):
         """Signs the message.
 
         Args:
@@ -194,7 +217,31 @@ class AnonCredential(object):
         Return:
             Signature: signature
         """
-        pass
+        p, g, Y_list, g_tilde, X_tilde, Y_tilde_list = pp
+        sigma, private_state = credential
+
+        r= p.random()
+
+        new_sigma = (sigma[0]**r, (sigma[0]**private_state[1] * sigma[1])**r)
+
+
+        #Again we need to build fiat heuristic proof
+        challenges = [GT.order().random() for i in range(Y_list+2)]
+
+        V = (new_sigma[0], g_tilde)**challenges[0] \
+            * (new_sigma[0], X_tilde)**challenges[1] \
+            * GT.prod((new_sigma[0], Y_tilde_list[i])**challenges[i+2] for i in range(len(Y_tilde_list)))
+
+        c = hash(pp, V, sigma[1])
+        q = GT.order()
+        R = [challenges[0]+c*private_state[1]%q, challenges[1]+c%q]\
+            .extend([challenges[i+2]+c*(private_state[0])[i] for i in range(len(Y_tilde_list))])
+
+        zkp = (c, R)
+
+
+        #TODO create the signature
+        return Signature()
 
 
 class Signature(object):

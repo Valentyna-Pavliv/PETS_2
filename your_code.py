@@ -34,13 +34,12 @@ class Server:
             You are free to design this as you see fit, but all communications
             needs to be encoded as byte arrays.
         """
-        attribute_list = jsonpickle.decode(valid_attributes)
 
         #As we setup the server, we need setuo inside an entity who will be the issuer
         issuer = Issuer()
 
         #Now the issuer will setup everything and the server's public/private keys == issuer sk+pk
-        issuer.setup(attribute_list)
+        issuer.setup(valid_attributes)
 
         return (issuer.get_serialized_public_key(), issuer.get_serialized_secret_key())
 
@@ -73,8 +72,6 @@ class Server:
                 attributes not in self.attribute_list):
             return (b"failed")
         '''
-
-
 
         #the issuer deals with the issue credentials
         return serialize(Issuer.issue(C, zkp))
@@ -127,13 +124,6 @@ class Client:
         valid_attr, pp = deserialize(server_pk)
 
 
-        #je sais pas ce que tu veux faire avec ça :(
-        '''
-        issuance_request = {}
-        issuance_request["username"] = username
-        issuance_request["attribute"] = attributes
-        '''
-
         #m_list transformation en liste binaire:
         #m_list sera de la meme longueur que valid_attributes, si attribute dans ceux du user = 1, else 0
         m_list = [1 if att in valid_attr else 0 for att in attributes.split()]
@@ -159,9 +149,11 @@ class Client:
         Return:
             credential (byte []): create an attribute-based credential for the user
         """
+
+        sigma_prime = deserialize(server_response)
+
         #Returns an Anoncredential (serialized)
-        
-        raise NotImplementedError
+        return serialize(AnonCredential.receive_issue_response(sigma_prime, private_state))
 
     def sign_request(self, server_pk, credential, message, revealed_info):
         """Signs the request with the clients credential.
@@ -177,17 +169,13 @@ class Client:
         Returns:
             byte []: message's signature (serialized)
         """
-        
-        # We sign something == create a signature.
         # credential passed as argument is an Anoncredential object.
-        deserialized_pk = Signature.deserialize(server_pk)
+
+        valid_attr, pp = deserialize(server_pk)
+        credential = deserialize(credential)
+        revealed = [1 if att in valid_attr else 0 for att in revealed_info.split()]
         
-        # We have to programm the object Anoncredential
-        
-        my_credential = AnonCredential(credential) #Create a new Anoncredential object and ask him to sign the message.
-        my_signature = my_credential.sign(message, revealed_info)
-        
-        return(my_signature.serialize())
+        return serialize(AnonCredential.sign(pp, credential, message, revealed))
 
 
 def serialize(complex_object):
