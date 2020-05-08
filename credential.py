@@ -13,7 +13,7 @@ import random as rd
 import base64
 import hashlib
 
-from your_code import serialize_G2, serialize_int, serialize_G1, serialize, deserialize
+from your_code import serialize, deserialize
 
 ''' Unused in the project
 class PSSignature(object):
@@ -146,16 +146,17 @@ class Issuer(object):
         """
 
         #first: the issuer verifies zkp
+        
         #c is the hash and R the list
         c, R = zkp
         R_prime = self.g**R[0] * (C**c).inverse() * G1.prod([self.Y_list[i]**R[i+1] for i in range(self.r)])
         #Compute the hash and check if the same
         if hash((R_prime, self.pk)) != c:
-            return ()
+            raise ValueError('Incorrect signature. Abort mission.')
 
         #if zkp is correct, issuer issues signature
         u = G1.order().random()
-        return (self.g**u, (C*self.sk)**u)
+        return serialize(self.g**u, (C*self.sk)**u)
 
 
 class AnonCredential(object):
@@ -184,12 +185,12 @@ class AnonCredential(object):
         V=g**challenge[0] * G1.prod([Y_list[i]**challenge[i+1] for i in range(m_len)])
 
         #Now hash V and public params
-        c = hash((V, pp))
+        c = hash((V, pp, m_list))
         R = [challenge[0]+c*t%p].extend([challenge[i+1]+c*m_list[i]%p for i in range(m_len)])
 
         zkp= (c, R)
 
-        return ((C, zkp), (m_list, t))
+        return (serialize(C, zkp), (m_list, t))
 
 
     def receive_issue_response(self, sigma_prime, private_state):
@@ -220,7 +221,7 @@ class AnonCredential(object):
         p, g, Y_list, g_tilde, X_tilde, Y_tilde_list = pp
         sigma, private_state = credential
 
-        r= p.random()
+        r = p.random()
 
         new_sigma = (sigma[0]**r, (sigma[0]**private_state[1] * sigma[1])**r)
 
@@ -232,24 +233,29 @@ class AnonCredential(object):
             * (new_sigma[0], X_tilde)**challenges[1] \
             * GT.prod((new_sigma[0], Y_tilde_list[i])**challenges[i+2] for i in range(len(Y_tilde_list)))
 
-        c = hash(pp, V, sigma[1])
+        c = hash(pp, V, message)
         q = GT.order()
         R = [challenges[0]+c*private_state[1]%q, challenges[1]+c%q]\
             .extend([challenges[i+2]+c*(private_state[0])[i] for i in range(len(Y_tilde_list))])
 
         zkp = (c, R)
 
-
-        #TODO create the signature
-        return Signature()
+        my_signature = Signature()
+        my_signature.custom_signature(new_sigma, message, zkp, revealed_attr)
+        return my_signature
 
 
 class Signature(object):
     """A Signature"""
+    
+    # We don't use a constructor, because we can use empty signatures to deserialize other signatures.
+    def custom_signature(self, sigma, message, zkp, attr):
+        self.sigma = sigma
+        self.message = message
+        self.zkp = zkp
+        self.attr = revealed_attr
 
-    def verify(self, issuer_public_info, public_attrs, message):
-        my_list = list(message)
-        
+    def verify(self, issuer_public_info, public_attrs, message):        
         """Verifies a signature.
 
         Args:
@@ -260,7 +266,29 @@ class Signature(object):
         returns:
             valid (boolean): is signature valid
         """
-        pass
+        
+        # Some verifications to check if the signature is not a forgery.
+        if message != self.message:
+            return False
+        if self.sigma[0] == G1.neutral_element():
+            return False
+        
+        #Extract useful test parameters
+        c, R = self.zkp
+        pp = deserialize(issuer_public_info)[1]
+        p, g, Y_list, g_tilde, X_tilde, Y_tilde_list = pp
+        y_len = len(Y_tilde_list)
+        
+        # Check that we have a correct signature
+        my_prod = (self.sigma[0].pair(g_tilde) \
+            * (self.sigma[0], X_tilde) ** R[1] \
+            * GT.prod((self.sigma[0].pair(Y_tilde_list[i]) ** R[i+2] for i in range(y_len)) \
+            * (self.sigma[1] * pair(g_tilde) ** c).inverse()
+        
+        c_prime = hash(pp, my_prod, message)
+        
+        return c_prime == c
+        
 
     def serialize(self):
         """Serialize the object to a byte array.

@@ -5,12 +5,11 @@ Classes that you need to complete.
 # Optional import
 import base64
 
-from credential import Signature, Issuer
 from serialization import jsonpickle, G1EMHandler, G2EMHandler
 from petrelic.multiplicative.pairing import G1, G2, GT
 import json
 import random as rd
-from credential import AnonCredential
+from credential import AnonCredential, Signature, Issuer
 
 class Server:
     """Server"""
@@ -35,7 +34,7 @@ class Server:
             needs to be encoded as byte arrays.
         """
 
-        #As we setup the server, we need setuo inside an entity who will be the issuer
+        #As we setup the server, we need setup inside an entity who will be the issuer
         issuer = Issuer()
 
         #Now the issuer will setup everything and the server's public/private keys == issuer sk+pk
@@ -59,12 +58,10 @@ class Server:
             response (bytes[]): the client should be able to build a credential
             with this response.
         """
-        # Response should contain (server_pk, server_response, private_state ????)
-        # La response contient pas private state, c'est juste le client qui est au courant de ça
-
+        
         C, zkp = deserialize(issuance_request)
 
-        #je sais pas trop ce que tu fais ici :(
+        
         '''
         request = jsonpickle.decode(issuance_request)
         if request["username"] != username or request["attribute"] != attributes or (
@@ -74,7 +71,7 @@ class Server:
         '''
 
         #the issuer deals with the issue credentials
-        return serialize(Issuer.issue(C, zkp))
+        return Issuer.issue(C, zkp)
 
     def check_request_signature(self, server_pk, message, revealed_attributes, signature):
         """
@@ -118,19 +115,12 @@ class Client:
                 from prepare_registration to proceed_registration_response.
                 You need to design the state yourself.
         """
-
-        #TODO What should we do with the server_pk ?
-        # On récupère les infos sur le serveur, ie les valid attributes etc...
         valid_attr, pp = deserialize(server_pk)
 
-
-        #m_list transformation en liste binaire:
-        #m_list sera de la meme longueur que valid_attributes, si attribute dans ceux du user = 1, else 0
         m_list = [1 if att in valid_attr else 0 for att in attributes.split()]
 
-        #AnonCredential s'occupe de create issue request, alors ça sera son problème
         request, private_state = AnonCredential.create_issue_request(m_list, pp)
-        return (serialize(request), private_state)
+        return (request, private_state)
 
 
 
@@ -199,76 +189,3 @@ def deserialize(byte_array):
     Return: the python object
     """
     return jsonpickle.decode(byte_array.decode('utf-8'))
-
-
-#TODO pas sure que c'es la méthode la plus simple à utiliser => à remplacer avec deserialize/serialize?
-def serialize_int(my_list):
-    
-    byte_array = b""
-    
-    for element in my_list:
-        byte_array += base64.b64encode(element.to_bytes(element.bit_length()//8+1, byteorder = "big")) + b'___'
-    
-    return(byte_array)
-
-#TODO pas sure que c'es la méthode la plus simple à utiliser => à remplacer avec deserialize/serialize?
-def deserialize_int(byte_array):
-    
-    my_list = []
-    
-    byte_list = byte_array.split(b"___")
-    
-    for element in byte_list:
-        my_list.append(int.from_bytes(base64.b64decode(element), byteorder = 'big'))
-    
-    return(my_list[:-1])
-
-
-#TODO pas sure que c'es la méthode la plus simple à utiliser => à remplacer avec deserialize/serialize?
-def serialize_G1(my_list):
-    my_handler = G1EMHandler(jsonpickle.handlers.BaseHandler)
-    
-    byte_array = b""
-    
-    for element in my_list:
-        byte_array += bytes(my_handler.flatten(element, {})['b64repr']+"___", "utf-8")
-    
-    return(byte_array)
-
-
-#TODO pas sure que c'es la méthode la plus simple à utiliser => à remplacer avec deserialize/serialize?
-def deserialize_G1(byte_array):
-    my_handler = G1EMHandler(jsonpickle.handlers.BaseHandler)
-    
-    my_list = []
-    decoded_byte = byte_array.decode().split("___")
-    
-    for element in decoded_byte:
-        my_list.append(my_handler.restore({"b64repr":element}))
-    
-    return(my_list[:-1])
-
-
-#TODO pas sure que c'es la méthode la plus simple à utiliser => à remplacer avec deserialize/serialize?
-def serialize_G2(my_list):
-    my_handler = G2EMHandler(jsonpickle.handlers.BaseHandler)
-    
-    byte_array = b""
-    
-    for element in my_list:
-        byte_array += bytes(my_handler.flatten(element, {})['b64repr']+"___", "utf-8")
-    
-    return(byte_array)
-
-#TODO pas sure que c'es la méthode la plus simple à utiliser => à remplacer avec deserialize/serialize?
-def deserialize_G2(byte_array):
-    my_handler = G2EMHandler(jsonpickle.handlers.BaseHandler)
-    
-    my_list = []
-    decoded_byte = byte_array.decode().split("___")
-    
-    for element in decoded_byte:
-        my_list.append(my_handler.restore({"b64repr":element}))
-    
-    return(my_list[:-1])
-    
