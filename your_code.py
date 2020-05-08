@@ -15,7 +15,7 @@ class Server:
     """Server"""
 
     @staticmethod
-    def generate_ca(self, valid_attributes):
+    def generate_ca(valid_attributes):
         """Initializes the credential system. Runs exactly once in the
         beginning. Decides on schemes public parameters and chooses a secret key
         for the server.
@@ -88,8 +88,7 @@ class Server:
             valid (boolean): is signature valid
         """
         # We test a signature to see if it is valid.
-        my_sig = Signature()
-        test_sig = my_sig.deserialize(signature)
+        test_sig = Signature.deserialize(signature)
         
         return test_sig.verify(server_pk, revealed_attributes, message)
 

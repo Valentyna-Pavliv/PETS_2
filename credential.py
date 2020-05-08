@@ -13,8 +13,6 @@ import random as rd
 import base64
 import hashlib
 
-from your_code import serialize, deserialize
-
 ''' Unused in the project
 class PSSignature(object):
     """PS's Multi-message signature from section 4.2
@@ -71,7 +69,7 @@ def hash(stuff):
     return:
         string that is the digest of the hash
     """
-    return int.to_bytes(hashlib.sha512(serialize(stuff)).hexdigest(), byteorder='big')
+    return hashlib.sha512(serialize(stuff)).hexdigest()
 
 class Issuer(object):
     """Allows the server to issue credentials"""
@@ -162,7 +160,8 @@ class Issuer(object):
 class AnonCredential(object):
     """An AnonCredential"""
 
-    def create_issue_request(self, m_list, pp):
+    @staticmethod
+    def create_issue_request(m_list, pp):
         
         #Client proves that he knows (t, m) with m the secret value and t is a random scalar.
         
@@ -175,18 +174,20 @@ class AnonCredential(object):
 
         #Compute C
         p, g, Y_list, g_tilde, X_tilde, Y_tilde_list = pp
-        t = p.random()
-        C = g**t * G1.prod([y_i**m_i for (y_i, m_i) in Y_list.zip(m_list)])
+        t = G1.order().random()
+        C = g**t * G1.prod([y_i**m_i for (y_i, m_i) in zip(Y_list, m_list)])
 
         #Use Fiat shamir heuristic for zkp
         #we need to pick a "challenge" ourselves and hash it
         m_len = len(m_list)
-        challenge = [p.random() for i in m_len+1]
-        V=g**challenge[0] * G1.prod([Y_list[i]**challenge[i+1] for i in range(m_len)])
+        exponents = [G1.order().random() for i in range(m_len+1)]
+        challenge = [G1.generator() ** exponents[i] for i in range(m_len+1)]
+        V=g**exponents[0] * G1.prod([Y_list[i]**exponents[i+1] for i in range(m_len)])
 
         #Now hash V and public params
         c = hash((V, pp, m_list))
-        R = [challenge[0]+c*t%p].extend([challenge[i+1]+c*m_list[i]%p for i in range(m_len)])
+        R = [exponents[0]+c*t%p]
+        R.extend([exponents[i+1]+c*m_list[i]%p for i in range(m_len)])
 
         zkp= (c, R)
 
@@ -280,11 +281,10 @@ class Signature(object):
         y_len = len(Y_tilde_list)
         
         # Check that we have a correct signature
-        my_prod = (self.sigma[0].pair(g_tilde) \
+        my_prod = self.sigma[0].pair(g_tilde) \
             * (self.sigma[0], X_tilde) ** R[1] \
-            * GT.prod((self.sigma[0].pair(Y_tilde_list[i]) ** R[i+2] for i in range(y_len)) \
+            * GT.prod((self.sigma[0].pair(Y_tilde_list[i]) ** R[i+2] for i in range(y_len))) \
             * (self.sigma[1] * pair(g_tilde) ** c).inverse()
-        
         c_prime = hash(pp, my_prod, message)
         
         return c_prime == c
@@ -315,3 +315,24 @@ class Signature(object):
         my_obj = jsonpickle.decode(json_byte)
         return(my_obj)
 
+def serialize(complex_object):
+    """
+    Transform an object into byte array
+
+    Transform an object into a json and then to a byte array
+
+    Arg: a python object
+
+    Return : the object encoded to byte[]
+    """
+    return jsonpickle.encode(complex_object).encode('utf-8')
+
+def deserialize(byte_array):
+    """
+    given a byte array of a json pickle of an object, return the python object
+
+    Arg: byte array of a python object encoded to a json
+
+    Return: the python object
+    """
+    return jsonpickle.decode(byte_array.decode('utf-8'))
