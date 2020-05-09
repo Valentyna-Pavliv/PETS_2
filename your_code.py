@@ -61,15 +61,6 @@ class Server:
         
         C, zkp = deserialize(issuance_request)
 
-        
-        '''
-        request = jsonpickle.decode(issuance_request)
-        if request["username"] != username or request["attribute"] != attributes or (
-                #je suis vraiment pas sure de ça
-                attributes not in self.attribute_list):
-            return (b"failed")
-        '''
-
         #the issuer deals with the issue credentials
         return Issuer.issue(C, zkp)
 
@@ -88,9 +79,9 @@ class Server:
             valid (boolean): is signature valid
         """
         # We test a signature to see if it is valid.
-        test_sig = Signature.deserialize(signature)
+        test_sig = Signature().deserialize(signature)
         
-        return test_sig.verify(server_pk, revealed_attributes, message)
+        return test_sig.verify(server_pk, revealed_attributes, message, revealed_attributes)
 
 
 
@@ -118,7 +109,7 @@ class Client:
 
         m_list = [1 if att in valid_attr else 0 for att in attributes.split()]
 
-        request, private_state = AnonCredential.create_issue_request(m_list, pp)
+        request, private_state = AnonCredential().create_issue_request(m_list, server_pk, username, attributes)
         return (request, private_state)
 
 
@@ -142,7 +133,7 @@ class Client:
         sigma_prime = deserialize(server_response)
 
         #Returns an Anoncredential (serialized)
-        return serialize(AnonCredential.receive_issue_response(sigma_prime, private_state))
+        return AnonCredential.receive_issue_response(sigma_prime, private_state)
 
     def sign_request(self, server_pk, credential, message, revealed_info):
         """Signs the request with the clients credential.
@@ -164,7 +155,7 @@ class Client:
         credential = deserialize(credential)
         revealed = [1 if att in valid_attr else 0 for att in revealed_info.split()]
         
-        return serialize(AnonCredential.sign(pp, credential, message, revealed))
+        return AnonCredential.sign(pp, credential, message, revealed)
 
 
 def serialize(complex_object):
