@@ -148,7 +148,7 @@ class Issuer(object):
         c, R = zkp
         sk, Y_list = deserialize(sk)
         
-        R_prime = self.g**R[0] * (C**c).inverse() * G1.prod([Y_list[i]**R[i+1] for i in range(self.r)])
+        R_prime = G1.generator()**R[0] * (C**c).inverse() * G1.prod([Y_list[i]**R[i+1] for i in range(len(Y_list))])
         
         #Compute the hash and check if the same
         if hash((R_prime, Y_list, message, attributes)) != c:
@@ -156,7 +156,7 @@ class Issuer(object):
 
         #if zkp is correct, issuer issues signature
         u = G1.order().random()
-        return serialize((self.g**u, (C*self.sk)**u))
+        return serialize((G1.generator()**u, (C*sk)**u))
 
 
 class AnonCredential(object):
@@ -175,12 +175,14 @@ class AnonCredential(object):
         """
 
         #Compute C
-        g, Y_list, g_tilde, X_tilde, Y_tilde_list = deserialize(pk)
+        g, Y_list, g_tilde, X_tilde, Y_tilde_list = deserialize(pk)[0]
         t = G1.order().random()
         C = g ** t * G1.prod([y_i ** m_i for (y_i, m_i) in zip(Y_list, m_list)])
+        p = G1.order()
 
         #Use Fiat shamir heuristic for zkp
         #we need to pick a "challenge" ourselves and hash it
+        #m_list has to be smaller than the size of valid_attributes
         m_len = len(m_list)
         exponents = [G1.order().random() for i in range(m_len + 1)]
         challenge = [G1.generator() ** exponents[i] for i in range(m_len + 1)]
@@ -234,10 +236,10 @@ class AnonCredential(object):
         challenges = [GT.order().random() for i in range(Y_len + 2)]
 
         V = new_sigma[0].pair(g_tilde ** challenges[0]) \
-            * (new_sigma[0].pair(X_tilde ** challenges[1]) \
+            * new_sigma[0].pair(X_tilde ** challenges[1]) \
             * GT.prod((new_sigma[0].pair(Y_tilde_list[i] ** challenges[i+2]) for i in range(Y_len)))
 
-        c = hash(V, message)
+        c = hash(V, Y_tilde_list, message)
         q = GT.order()
         R = [challenges[0] + c * private_state[0]]\
             .extend([challenges[i+1] + c * (private_state[1])[i] for i in range(Y_len)])
@@ -288,7 +290,7 @@ class Signature(object):
             * self.sigma[0].pair(X_tilde) ** R[0] \
             * GT.prod([self.sigma[0].pair(Y_tilde_list[i]) ** R[i+1] for i in range(y_len)]) \
             * (self.sigma[1].pair(g_tilde) ** c).inverse()
-        c_prime = hash(my_prod, message)
+        c_prime = hash(my_prod, Y_tilde_list, message)
         
         return c_prime == c
         
@@ -312,7 +314,7 @@ class Signature(object):
             Signature
         """
         sigma, message, zkp, attr = deserialize(data)
-        My_sig = Signature.
+        My_sig = Signature()
         My_sig.custom_signature(sigma, message, zkp, attr)
         return(My_sig)
 

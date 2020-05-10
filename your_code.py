@@ -42,7 +42,6 @@ class Server:
 
         return (issuer.get_serialized_public_key(), issuer.get_serialized_secret_key())
 
-
     def register(self, server_sk, issuance_request, username, attributes):
         """ Registers a new account on the server.
 
@@ -62,7 +61,7 @@ class Server:
         C, zkp = deserialize(issuance_request)
 
         #the issuer deals with the issue credentials
-        return Issuer.issue(C, zkp)
+        return Issuer().issue(server_sk, C, zkp, issuance_request, attributes)
 
     def check_request_signature(self, server_pk, message, revealed_attributes, signature):
         """
@@ -105,10 +104,10 @@ class Client:
                 from prepare_registration to proceed_registration_response.
                 You need to design the state yourself.
         """
-        valid_attr, pp = deserialize(server_pk)
+        pk, valid_attr = deserialize(server_pk)
 
         m_list = [1 if att in valid_attr else 0 for att in attributes.split()]
-
+        
         request, private_state = AnonCredential().create_issue_request(m_list, server_pk, username, attributes)
         return (request, private_state)
 
@@ -133,7 +132,7 @@ class Client:
         sigma_prime = deserialize(server_response)
 
         #Returns an Anoncredential (serialized)
-        return AnonCredential.receive_issue_response(sigma_prime, private_state)
+        return AnonCredential().receive_issue_response(sigma_prime, private_state)
 
     def sign_request(self, server_pk, credential, message, revealed_info):
         """Signs the request with the clients credential.
@@ -151,11 +150,12 @@ class Client:
         """
         # credential passed as argument is an Anoncredential object.
 
-        valid_attr, pp = deserialize(server_pk)
+        pk, valid_attr = deserialize(server_pk)
         credential = deserialize(credential)
         revealed = [1 if att in valid_attr else 0 for att in revealed_info.split()]
+        print(revealed)
         
-        return AnonCredential.sign(pp, credential, message, revealed)
+        return AnonCredential().sign(pk, credential, message, revealed)
 
 
 def serialize(complex_object):
