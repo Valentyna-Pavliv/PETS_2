@@ -259,7 +259,7 @@ class Signature(object):
         self.sigma = sigma
         self.message = message
         self.zkp = zkp
-        self.attr = revealed_attr
+        self.attr = attr
 
     def verify(self, issuer_public_info, public_attrs, message):        
         """Verifies a signature.
