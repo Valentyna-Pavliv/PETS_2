@@ -9,7 +9,7 @@ from serialization import jsonpickle, G1EMHandler, G2EMHandler
 from petrelic.multiplicative.pairing import G1, G2, GT
 import json
 import random as rd
-from credential import AnonCredential, Signature, Issuer
+from credential import AnonCredential, Signature, Issuer, serialize, deserialize
 
 class Server:
     """Server"""
@@ -158,24 +158,3 @@ class Client:
         return AnonCredential().sign(pk, credential, message, revealed)
 
 
-def serialize(complex_object):
-    """
-    Transform an object into byte array
-
-    Transform an object into a json and then to a byte array
-
-    Arg: a python object
-
-    Return : the object encoded to byte[]
-    """
-    return jsonpickle.encode(complex_object).encode('utf-8')
-
-def deserialize(byte_array):
-    """
-    given a byte array of a json pickle of an object, return the python object
-
-    Arg: byte array of a python object encoded to a json
-
-    Return: the python object
-    """
-    return jsonpickle.decode(byte_array.decode('utf-8'))

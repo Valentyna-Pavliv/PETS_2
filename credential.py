@@ -9,8 +9,6 @@
 
 from serialization import jsonpickle
 from petrelic.multiplicative.pairing import G1, G2, GT
-import random as rd
-import base64
 import hashlib
 
 ''' Unused in the project
@@ -62,13 +60,7 @@ class PSSignature(object):
         
         return(sigma1.pair(my_prod) == sigma2.pair(pk[0]))
 '''
-def hash(stuff):
-    """
-    Hash function used for fiat shamir zkp, hashes everything
-    return:
-        string that is the digest of the hash
-    """
-    return int.from_bytes(hashlib.sha512(serialize(stuff)).digest(), byteorder = 'big')
+
 
 class Issuer(object):
     """Allows the server to issue credentials"""
@@ -339,3 +331,11 @@ def deserialize(byte_array):
     Return: the python object
     """
     return jsonpickle.decode(byte_array.decode('utf-8'))
+
+def hash(stuff):
+    """
+    Hash function used for fiat shamir zkp, hashes everything
+    return:
+        string that is the digest of the hash
+    """
+    return int.from_bytes(hashlib.sha512(serialize(stuff)).digest(), byteorder = 'big')
