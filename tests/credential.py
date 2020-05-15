@@ -124,7 +124,7 @@ class Issuer(object):
         # The secret key needs to contain the first element of the pk, so that we can compute the complete pk from the secret key.
         return serialize((self.sk, self.Y_list))
 
-    def issue(self, sk, C, zkp, message, attributes):
+    def issue(self, sk, C, zkp, attributes, username):
         """Issues a credential for a new user. 
 
         This function should receive a issuance request from the user
@@ -143,12 +143,12 @@ class Issuer(object):
         R_prime = G1.generator()**R[0] * (C**c).inverse() * G1.prod([Y_list[i]**R[i+1] for i in range(len(Y_list))])
         
         #Compute the hash and check if the same
-        if hash((R_prime, Y_list, message, attributes)) != c:
+        if hash((R_prime,C , Y_list, username, attributes)) != c:
             raise ValueError('Incorrect ! Abort mission, extraction needed !')
 
-        #if zkp is correct, issuer issues signature
+        #if zkp is correct, issuer issues credentials
         u = G1.order().random()
-        return serialize((G1.generator()**u, (C*sk)**u))
+        return serialize((G1.generator()**u, (C*sk)**(u)))
 
 
 class AnonCredential(object):
@@ -166,6 +166,9 @@ class AnonCredential(object):
         You should design the issue_request as you see fit.
         """
 
+        m_len = len(m_list) + 1
+        m_list = [hash(username)] + m_list
+
         #Compute C
         g, Y_list, g_tilde, X_tilde, Y_tilde_list = deserialize(pk)[0]
         t = G1.order().random()
@@ -175,14 +178,13 @@ class AnonCredential(object):
         #Use Fiat shamir heuristic for zkp
         #we need to pick a "challenge" ourselves and hash it
         #m_list has to be smaller than the size of valid_attributes
-        m_len = len(m_list)
         exponents = [G1.order().random() for i in range(m_len + 1)]
-        challenge = [G1.generator() ** exponents[i] for i in range(m_len + 1)]
         V = g ** exponents[0] * G1.prod([Y_list[i] ** exponents[i+1] for i in range(m_len)])
 
         #Now hash V and public params
-        c = hash((V, Y_list, m_list, attributes))
-        R = [exponents[0] + c * t % p].extend([exponents[i+1] + c * m_list[i] % p for i in range(m_len)])
+        c = hash((V, C, Y_list, username, attributes))
+        R = [exponents[0] + c * t % p]
+        R.extend([exponents[i+1] + c * m_list[i] % p for i in range(m_len)])
 
         zkp= (c, R)
 
@@ -203,7 +205,7 @@ class AnonCredential(object):
         
         sigma_prime = deserialize(sigma_prime_serialized)
         
-        return serialize((sigma_prime[0], sigma_prime[1]/sigma_prime[0]**private_state[1], private_state))
+        return serialize((sigma_prime[0], sigma_prime[1]/(sigma_prime[0]**private_state[0]), private_state))
 
 
     def sign(self, pk, credential, message, revealed_attr):
@@ -217,36 +219,39 @@ class AnonCredential(object):
             Signature: signature
         """
         g, Y_list, g_tilde, X_tilde, Y_tilde_list = deserialize(pk)
-        sigma, private_state = deserialize(credential)
+        sigma_0, sigma_1, private_state = deserialize(credential)
+        sigma = (sigma_0, sigma_1)
         Y_len = len(Y_list)
+        p = G1.order()
 
-        r = G1.order().random()
+        r = GT.order().random()
 
-        new_sigma = (sigma[0]**r, (sigma[0] ** private_state[1] * sigma[1]) ** r)
+        new_sigma = (sigma[0]**r, (sigma[0] ** private_state[0] * sigma[1]) ** r)
 
         #Again we need to build fiat heuristic proof
         challenges = [GT.order().random() for i in range(Y_len + 2)]
 
-        V = new_sigma[0].pair(g_tilde ** challenges[0]) \
+        V = new_sigma[0].pair(g_tilde) ** challenges[0] \
             * new_sigma[0].pair(X_tilde ** challenges[1]) \
             * GT.prod((new_sigma[0].pair(Y_tilde_list[i] ** challenges[i+2]) for i in range(Y_len)))
 
-        c = hash(V, Y_tilde_list, message)
+        c = hash((V, Y_tilde_list, message))
         q = GT.order()
-        R = [challenges[0] + c * private_state[0]]\
-            .extend([challenges[i+1] + c * (private_state[1])[i] for i in range(Y_len)])
+        R = [challenges[0] + c * private_state[0] % p]
+        R.append((challenges[1] + c) % p)
+        R.extend([challenges[i+2] + c * (private_state[1])[i] % p for i in range(Y_len)])
 
         zkp = (c, R)
 
         my_signature = Signature()
         my_signature.custom_signature(new_sigma, message, zkp, revealed_attr)
-        return my_signature
+        return my_signature.serialize()
 
 
 class Signature(object):
     """A Signature"""
     
-    # We first thought of using a constructor, but realized that we could use empty signatures to deserialize other signatures.
+    # We first thought of using a constructor method, but realized that we could use empty signatures to deserialize other signatures.
     def custom_signature(self, sigma, message, zkp, attr):
         self.sigma = sigma
         self.message = message
@@ -278,11 +283,11 @@ class Signature(object):
         y_len = len(Y_tilde_list)
         
         # Check that we have a correct signature
-        my_prod = self.sigma[0].pair(g_tilde) ** c \
-            * self.sigma[0].pair(X_tilde) ** R[0] \
-            * GT.prod([self.sigma[0].pair(Y_tilde_list[i]) ** R[i+1] for i in range(y_len)]) \
-            * (self.sigma[1].pair(g_tilde) ** c).inverse()
-        c_prime = hash(my_prod, Y_tilde_list, message)
+        my_prod = self.sigma[0].pair(g_tilde) ** R[0] \
+            * self.sigma[0].pair(X_tilde) ** R[1] \
+            * GT.prod([self.sigma[0].pair(Y_tilde_list[i]) ** R[i+2] for i in range(y_len)]) \
+            * (self.sigma[1].pair(g_tilde ** (c))).inverse()
+        c_prime = hash((my_prod, Y_tilde_list, message))
         
         return c_prime == c
         
@@ -293,7 +298,7 @@ class Signature(object):
         Returns:
             byte[]: a byte array
         """        
-        return(serialize((self.sigma, self.message, self.zkp, self.revealed_attr)))
+        return(serialize((self.sigma, self.message, self.zkp, self.attr)))
 
     @staticmethod
     def deserialize(data):

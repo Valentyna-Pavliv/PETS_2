@@ -61,7 +61,7 @@ class Server:
         C, zkp = deserialize(issuance_request)
 
         #the issuer deals with the issue credentials
-        return Issuer().issue(server_sk, C, zkp, issuance_request, attributes)
+        return Issuer().issue(server_sk, C, zkp, attributes, username)
 
     def check_request_signature(self, server_pk, message, revealed_attributes, signature):
         """
@@ -80,7 +80,7 @@ class Server:
         # We test a signature to see if it is valid.
         test_sig = Signature().deserialize(signature)
         
-        return test_sig.verify(server_pk, revealed_attributes, message, revealed_attributes)
+        return test_sig.verify(server_pk, revealed_attributes, message)
 
 
 
@@ -106,7 +106,7 @@ class Client:
         """
         pk, valid_attr = deserialize(server_pk)
 
-        m_list = [1 if att in valid_attr else 0 for att in attributes.split()]
+        m_list = [1 if att in attributes else 0 for att in valid_attr]
         
         request, private_state = AnonCredential().create_issue_request(m_list, server_pk, username, attributes)
         return (request, private_state)
@@ -129,10 +129,8 @@ class Client:
             credential (byte []): create an attribute-based credential for the user
         """
 
-        sigma_prime = deserialize(server_response)
-
         #Returns an Anoncredential (serialized)
-        return AnonCredential().receive_issue_response(sigma_prime, private_state)
+        return AnonCredential().receive_issue_response(server_response, private_state)
 
     def sign_request(self, server_pk, credential, message, revealed_info):
         """Signs the request with the clients credential.
@@ -151,9 +149,8 @@ class Client:
         # credential passed as argument is an Anoncredential object.
 
         pk, valid_attr = deserialize(server_pk)
-        credential = deserialize(credential)
-        revealed = [1 if att in valid_attr else 0 for att in revealed_info.split()]
+        revealed = [1 if att in revealed_info else 0 for att in valid_attr]
         
-        return AnonCredential().sign(pk, credential, message, revealed)
+        return AnonCredential().sign(serialize(pk), credential, message, revealed)
 
 
