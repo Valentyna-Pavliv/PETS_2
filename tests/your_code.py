@@ -58,7 +58,7 @@ class Server:
             with this response.
         """
         
-        C, zkp = deserialize(issuance_request)
+        C, zkp = deserialize(issuance_request[0]), deserialize(issuance_request[1])
 
         #the issuer deals with the issue credentials
         return Issuer().issue(server_sk, C, zkp, attributes, username)

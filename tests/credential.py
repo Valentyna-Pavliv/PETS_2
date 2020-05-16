@@ -188,7 +188,7 @@ class AnonCredential(object):
 
         zkp= (c, R)
 
-        return (serialize((C, zkp)), (t, m_list))
+        return (serialize(C), serialize(zkp)), (t, m_list)
 
 
     def receive_issue_response(self, sigma_prime_serialized, private_state):
@@ -234,7 +234,7 @@ class AnonCredential(object):
         V = new_sigma[0].pair(g_tilde) ** challenges[0] \
             * new_sigma[0].pair(X_tilde ** challenges[1]) \
             * GT.prod((new_sigma[0].pair(Y_tilde_list[i] ** challenges[i+2]) for i in range(Y_len)))
-
+        
         c = hash((V, Y_tilde_list, message))
         q = GT.order()
         R = [challenges[0] + c * private_state[0] % p]
@@ -287,8 +287,9 @@ class Signature(object):
             * self.sigma[0].pair(X_tilde) ** R[1] \
             * GT.prod([self.sigma[0].pair(Y_tilde_list[i]) ** R[i+2] for i in range(y_len)]) \
             * (self.sigma[1].pair(g_tilde ** (c))).inverse()
-        c_prime = hash((my_prod, Y_tilde_list, message))
         
+        c_prime = hash((my_prod, Y_tilde_list, message))
+        print(c_prime, c)
         return c_prime == c
         
 

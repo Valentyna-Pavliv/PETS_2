@@ -146,8 +146,9 @@ class Client:
         Returns:
             byte []: message's signature (serialized)
         """
+        
+        # The message corresponds to the coordinates we have.
         # credential passed as argument is an Anoncredential object.
-
         pk, valid_attr = deserialize(server_pk)
         revealed = [1 if att in revealed_info else 0 for att in valid_attr]
         

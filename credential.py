@@ -188,7 +188,7 @@ class AnonCredential(object):
 
         zkp= (c, R)
 
-        return (serialize((C, zkp)), (t, m_list))
+        return serialize((C, zkp)), (t, m_list)
 
 
     def receive_issue_response(self, sigma_prime_serialized, private_state):
@@ -230,11 +230,9 @@ class AnonCredential(object):
 
         #Again we need to build fiat heuristic proof
         challenges = [GT.order().random() for i in range(Y_len + 2)]
-
         V = new_sigma[0].pair(g_tilde) ** challenges[0] \
             * new_sigma[0].pair(X_tilde ** challenges[1]) \
             * GT.prod((new_sigma[0].pair(Y_tilde_list[i] ** challenges[i+2]) for i in range(Y_len)))
-
         c = hash((V, Y_tilde_list, message))
         q = GT.order()
         R = [challenges[0] + c * private_state[0] % p]
@@ -242,7 +240,7 @@ class AnonCredential(object):
         R.extend([challenges[i+2] + c * (private_state[1])[i] % p for i in range(Y_len)])
 
         zkp = (c, R)
-
+       
         my_signature = Signature()
         my_signature.custom_signature(new_sigma, message, zkp, revealed_attr)
         return my_signature.serialize()
@@ -269,8 +267,7 @@ class Signature(object):
         returns:
             valid (boolean): is signature valid
         """
-        
-        # Some verifications to check if the signature is not a forgery.
+        # Some verifications to check if the signature is not a forgery
         if message != self.message:
             return False
         if self.sigma[0] == G1.neutral_element():
@@ -281,7 +278,6 @@ class Signature(object):
         pk, attr = deserialize(issuer_public_info)
         g, Y_list, g_tilde, X_tilde, Y_tilde_list = pk
         y_len = len(Y_tilde_list)
-        
         # Check that we have a correct signature
         my_prod = self.sigma[0].pair(g_tilde) ** R[0] \
             * self.sigma[0].pair(X_tilde) ** R[1] \
@@ -297,7 +293,7 @@ class Signature(object):
 
         Returns:
             byte[]: a byte array
-        """        
+        """
         return(serialize((self.sigma, self.message, self.zkp, self.attr)))
 
     @staticmethod
@@ -335,6 +331,8 @@ def deserialize(byte_array):
 
     Return: the python object
     """
+    if type(byte_array) == str:
+        return jsonpickle.decode(byte_array)
     return jsonpickle.decode(byte_array.decode('utf-8'))
 
 def hash(stuff):
