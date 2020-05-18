@@ -56,7 +56,7 @@ def test_signature():
     request, state = my_client.prepare_registration(pk_ser, "stain", "Moon Paris")
     response = my_server.register(sk_ser, request, "stain", "Moon Paris")
     cred = my_client.proceed_registration_response(pk_ser, response, state)
-    my_mess = "I love PETS"
+    my_mess = b"I love PETS"
     my_attr = "Moon Paris"
     my_sig = my_client.sign_request(pk_ser, cred, my_mess, my_attr)
     my_verif = my_server.check_request_signature(pk_ser, my_mess, my_attr, my_sig)
@@ -82,23 +82,29 @@ def test_neutral_element():
     response = my_server.register(sk_ser, request, "stain", "Moon Paris")
     cred = my_client.proceed_registration_response(pk_ser, response, state)
     _, _, private_state = credential.deserialize(cred)
-    my_mess = "I love PETS"
+    my_mess = b"I love PETS"
     my_attr = "Moon Paris"
     new_cred = credential.serialize((G1.neutral_element(), G1.neutral_element(), private_state))
     my_sig = my_client.sign_request(pk_ser, new_cred, my_mess, my_attr)
     my_verif = my_server.check_request_signature(pk_ser, my_mess, my_attr, my_sig)
     assert not my_verif
 
-def test_false_attributes():
-    #We check that a credential can't give access to additional attributes.
+def test_false_signature():
+    #We check that an adversary can't forge credentials
     my_server = your_code.Server()
     my_client = your_code.Client()
     pk_ser, sk_ser = my_server.generate_ca("Moon Pluto Uranus Sun Paris")
     request, state = my_client.prepare_registration(pk_ser, "stain", "Moon Paris")
-    response = my_server.register(sk_ser, request, "stain", "Moon Paris")
-    cred = my_client.proceed_registration_response(pk_ser, response, state)
-    my_mess = "I love PETS"
-    my_attr = "Sun"
+
+    C, zkp = credential.deserialize(request[0]), credential.deserialize(request[1])
+    fake_u = G1.order().random()
+    fake_sk = G1.generator() ** G1.order().random()
+    fake_response = credential.serialize((G1.generator()**fake_u, (C * fake_sk)**fake_u))
+    cred = my_client.proceed_registration_response(pk_ser, fake_response, state)
+
+    my_mess = b"I love PETS"
+    my_attr = "Moon Paris"
     my_sig = my_client.sign_request(pk_ser, cred, my_mess, my_attr)
     my_verif = my_server.check_request_signature(pk_ser, my_mess, my_attr, my_sig)
     assert not my_verif
+

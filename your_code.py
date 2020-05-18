@@ -4,7 +4,7 @@ Classes that you need to complete.
 
 # Optional import
 import base64
-
+import time
 from serialization import jsonpickle, G1EMHandler, G2EMHandler
 from petrelic.multiplicative.pairing import G1, G2, GT
 import json
@@ -39,7 +39,6 @@ class Server:
 
         #Now the issuer will setup everything and the server's public/private keys == issuer sk+pk
         issuer.setup(valid_attributes)
-
         return (issuer.get_serialized_public_key(), issuer.get_serialized_secret_key())
 
     def register(self, server_sk, issuance_request, username, attributes):
