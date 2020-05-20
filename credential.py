@@ -333,6 +333,7 @@ def deserialize(byte_array):
 
     Return: the python object
     """
+    #Note : We encountered a strange bug where the serialized bytes we would send would become a string on arrival. In order to face this conversion, we added an 'if' case.
     if type(byte_array) == str:
         return jsonpickle.decode(byte_array)
     return jsonpickle.decode(byte_array.decode('utf-8'))
