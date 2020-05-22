@@ -10,7 +10,6 @@
 from serialization import jsonpickle
 from petrelic.multiplicative.pairing import G1, G2, GT
 import hashlib
-import time
 
 ''' Unused in the project
 class PSSignature(object):
@@ -256,8 +255,7 @@ class Signature(object):
         self.zkp = zkp
         self.attr = attr
 
-    def verify(self, issuer_public_info, public_attrs, message):
-        begin = time.time()     
+    def verify(self, issuer_public_info, public_attrs, message):    
         """Verifies a signature.
 
         Args:
@@ -285,8 +283,6 @@ class Signature(object):
             * GT.prod([self.sigma[0].pair(Y_tilde_list[i]) ** R[i+2] for i in range(y_len)]) \
             * (self.sigma[1].pair(g_tilde ** (c))).inverse()
         c_prime = hash((my_prod, Y_tilde_list, message))
-        end = time.time()
-        print(end - begin)
         return c_prime == c
         
 

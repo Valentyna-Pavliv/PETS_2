@@ -4,7 +4,6 @@ Classes that you need to complete.
 
 # Optional import
 import base64
-import time
 from serialization import jsonpickle, G1EMHandler, G2EMHandler
 from petrelic.multiplicative.pairing import G1, G2, GT
 import json
