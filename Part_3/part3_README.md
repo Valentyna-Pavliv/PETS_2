@@ -13,14 +13,16 @@ The third part contains 1001 files, located in 'Part_3/Training_data' file:
            => there is 100 different zones and 10 different users per zone
            => the same user number in different zones doesn't mean that the user is the same
            => a csv file is a network capture of packets during the exchange between the user and the server 
-- jupyter notebook file: clean and extract data form these csv files, and build a classifier
+- jupyter notebook file: cleans and extracts data from these csv files, and builds a classifier
 
 Our jupyter book has functions to analyze and clean the data files, as well as build a model to find out user's location given the network communication.
 
 
 ########### Running the program ##########
 
-Make sure you have every file cited above in the same file. Open the jupyter notebook and run all cells one after another. Be aware that the model fitting is time-consumming. You'll get the accuracy in the final cell.
+Make sure you have every file cited above in the same folder. Open the jupyter notebook and run all cells one after another. Be aware that the model fitting is time-consumming. You'll get the accuracy in the final cell.
+
+In order to collect our training data, we used the sample code provided in the original README file.
 
 ########### Have a great day :) ##########
 
